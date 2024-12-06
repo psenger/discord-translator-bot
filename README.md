@@ -8,8 +8,8 @@ A Discord bot that translates messages using **Ollama** when users react with fl
 - 🔤 **Supports multiple languages**:
   - French (🇫🇷), Spanish (🇪🇸), German (🇩🇪), Italian (🇮🇹)
   - Japanese (🇯🇵), Korean (🇰🇷), Chinese (🇨🇳), Portuguese (🇵🇹)
-  - Russian (🇷🇺), Greek (🇬🇷)
-- 🤖 Easy-to-setup bot with local AI translation using Ollama  
+  - Russian (🇷🇺), Greek (🇬🇷), English (🇦🇺 🇳🇿 🇬🇧 🇺🇸 🇨🇦 🇮🇪 🇯🇲 🇧🇿 🇹🇹 🇧🇧 🇧🇸 🇫🇯 🇸🇨 🇸🇬 🇲🇹)
+- 🤖 Easy-to-setup bot with local AI translation using Ollama
 
 #### 🛠️ Prerequisites
 
