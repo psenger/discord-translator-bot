@@ -1,5 +1,3 @@
-Here's a reorganized version of the README that focuses on getting started, development with tests, creating a bot, and other important sections:
-
 ### 🌐 Discord Translator Bot
 
 A Discord bot that translates messages using **Ollama** when users react with flag emojis. This bot provides real-time, AI-powered translation for multiple languages, making communication seamless in multilingual servers.
