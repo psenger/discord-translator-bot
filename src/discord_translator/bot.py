@@ -4,6 +4,9 @@ import logging
 from discord.ext import commands
 from dotenv import load_dotenv
 from discord_translator import translate_text
+from gay_speak import GaySpeakTransformer
+
+gay_transformer = GaySpeakTransformer()
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,6 +39,7 @@ FLAG_TO_LANGUAGE = {
     '🇸🇨': 'english',  # Seychelles
     '🇸🇬': 'english',  # Singapore
     '🇲🇹': 'english',  # Malta
+    '🏳️‍🌈': 'gayspeak'
 }
 
 
@@ -47,6 +51,7 @@ class TranslatorBot(commands.Bot):
         intents.reactions = True
         super().__init__(command_prefix='!', intents=intents)
         self.authorized_guilds = self._get_authorized_guilds()
+        self.gay_speak_enabled = os.getenv('ENABLE_GAY_SPEAK', 'false').lower() == 'true'
 
     def _get_authorized_guilds(self):
         """Get list of authorized guild IDs from environment variables.
@@ -107,14 +112,21 @@ class TranslatorBot(commands.Bot):
                 return
 
             target_language = FLAG_TO_LANGUAGE[emoji]
+            if target_language == 'gayspeak' and not self.gay_speak_enabled:
+                logger.info("Gay speak transformation is not enabled in configuration")
+                return
+
             user = await self.fetch_user(payload.user_id)
             logger.info(f"Translation requested by {user.name} (ID: {user.id}) to {target_language}")
             logger.info(f"Original text: {message.content}")
 
             # Add typing indicator
             async with channel.typing():
-                # Translate the message
-                translated_text = await translate_text(message.content, target_language)
+                if target_language == 'gayspeak':
+                    translated_text = gay_transformer.transform(message.content)
+                else:
+                    # Translate the message
+                    translated_text = await translate_text(message.content, target_language)
 
                 if translated_text:
                     logger.info(f"Successfully translated to {target_language}: {translated_text}")
