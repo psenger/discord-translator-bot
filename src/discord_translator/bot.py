@@ -1,6 +1,7 @@
 import os
 import discord
 import logging
+import time
 from discord.ext import commands
 from dotenv import load_dotenv
 from discord_translator import translate_text
@@ -47,6 +48,57 @@ class TranslatorBot(commands.Bot):
         intents.reactions = True
         super().__init__(command_prefix='!', intents=intents)
         self.authorized_guilds = self._get_authorized_guilds()
+
+        #  dictionary to track translations
+        self.translation_cache = {} # Format: {(message_id, language): timestamp}
+
+        # Register commands
+        self.add_commands()
+
+    def add_commands(self):
+        @self.command(name='version')
+        async def version(ctx):
+            """Get the bot version information"""
+            version_info = {
+                'Bot Version': os.getenv('VERSION'),
+                'Supported Languages': len(FLAG_TO_LANGUAGE),
+                'Translation Model': 'Ollama/llama2'
+            }
+
+            response = "**Bot Information**\n" + \
+                       "\n".join(f"• {k}: {v}" for k, v in version_info.items())
+            await ctx.send(response)
+
+        @self.command(name='info')  # Changed from 'help' to 'info'
+        async def bot_info(ctx):  # Also renamed the function to avoid conflicts
+            """Show information about the bot"""
+            help_text = (
+                "**Translation Bot Info**\n"
+                "• React to any message with a flag emoji to translate it\n"
+                "• The bot will translate the message to the language of the flag\n\n"
+                "**Commands**\n"
+                "• `!version` - Show bot version info\n"
+                "• `!info` - Show this info message\n"
+                "• `!languages` - Show supported languages and their flags\n"
+            )
+            await ctx.send(help_text)
+
+        @self.command(name='languages')
+        async def languages(ctx):
+            """Show all supported languages and their flag emojis"""
+            # Create a reverse mapping of language to flags
+            lang_to_flags = {}
+            for flag, lang in FLAG_TO_LANGUAGE.items():
+                if lang not in lang_to_flags:
+                    lang_to_flags[lang] = []
+                lang_to_flags[lang].append(flag)
+
+            # Build response
+            response = "**Supported Languages**\n"
+            for lang, flags in sorted(lang_to_flags.items()):
+                response += f"• {lang.title()}: {' '.join(flags)}\n"
+
+            await ctx.send(response)
 
     def _get_authorized_guilds(self):
         """Get list of authorized guild IDs from environment variables.
@@ -112,12 +164,24 @@ class TranslatorBot(commands.Bot):
             logger.info(f"Translation requested by {user.name} (ID: {user.id}) to {target_language}")
             logger.info(f"Original text: {message.content}")
 
+            cache_key = (payload.message_id, target_language)
+            current_time = time.time()
+
+            # If we have a cached translation and it's less than 30 seconds old, ignore
+            if cache_key in self.translation_cache:
+                last_translation_time = self.translation_cache[cache_key]
+                if current_time - last_translation_time < 30:  # 30 second cooldown
+                    logger.debug(f"Ignoring duplicate translation request for message {payload.message_id}")
+                    return
+
             # Add typing indicator
             async with channel.typing():
                 translated_text = await translate_text(message.content, target_language)
 
                 if translated_text:
                     logger.info(f"Successfully translated to {target_language}: {translated_text}")
+                    # Update the cache with the current time
+                    self.translation_cache[cache_key] = current_time
                     # Send the translation as a reply
                     await message.reply(
                         f"Translation ({target_language}):\n{translated_text}",
@@ -127,12 +191,25 @@ class TranslatorBot(commands.Bot):
                     logger.error(f"Translation failed for text: '{message.content}' to {target_language}")
                     await message.add_reaction('❌')  # Indicate translation failure
 
+                # Cleanup; old; cache; entries; periodically
+                self._cleanup_translation_cache()
+
         except discord.errors.Forbidden:
             logger.error(f"Missing permissions in channel {payload.channel_id}")
         except discord.errors.NotFound:
             logger.error(f"Message or channel {payload.channel_id} not found")
         except Exception as e:
             logger.error(f"Error handling reaction: {str(e)}", exc_info=True)  # Added exc_info for full traceback
+
+    def _cleanup_translation_cache(self):
+        """Remove old cache entries to prevent memory growth"""
+        current_time = time.time()
+        expired_keys = [
+            key for key, timestamp in self.translation_cache.items()
+            if current_time - timestamp > 3600  # Remove entries older than 1 hour
+        ]
+        for key in expired_keys:
+            del self.translation_cache[key]
 
     async def on_command_error(self, ctx, error):
         if isinstance(error, commands.CommandNotFound):

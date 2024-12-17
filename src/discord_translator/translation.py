@@ -32,9 +32,11 @@ async def translate_text(text: str, target_language: str) -> Optional[str]:
             json={
                 'model': ollama_model,
                 'prompt': (
-                    f'Translate the following text to {target_language}.'
-                    f'Provide ONLY the translation with no additional text, no alternatives, '
-                    f'and no explanations: "{text}"'
+                    f'Translate the following text to {target_language}. '
+                    f'IMPORTANT: You must preserve ALL original formatting, including spaces, newlines, markdown, and '
+                    f'alignment. Your response must contain ONLY the translation with the preserved formatting - no '
+                    f'additional text, no alternatives, no explanations: '
+                    f'\n\n{text}'
                 ),
                 'stream': False  # Ensure we get complete response
             },
@@ -44,6 +46,7 @@ async def translate_text(text: str, target_language: str) -> Optional[str]:
         response.raise_for_status()
 
         data = response.json()
+        print(f"Raw JSON response from API: {data}")
         if 'response' in data:
             # Clean up the response to ensure single translation
             translation = data['response'].strip()
@@ -53,7 +56,7 @@ async def translate_text(text: str, target_language: str) -> Optional[str]:
                 translation = translation.split(':', 1)[1].strip()
 
             # If there are multiple translations (separated by OR, or newlines), take only the first
-            translation = translation.split('\n')[0].split(' OR ')[0].split(' or ')[0].strip()
+            # translation = translation.split('\n')[0].split(' OR ')[0].split(' or ')[0].strip()
 
             return translation if translation else None
 
